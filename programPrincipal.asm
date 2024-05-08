@@ -7,23 +7,38 @@ ExitProcess proto, dwExitCode : dword
 .DATA
 	sting db "-4 8$", 0
 	string db "36 7", 0
-	numero1 dw ?
-	numero2 dw ?
+	freemem dd ?
+	polinomio dd ?
 	buffer byte 100 dup(?)
 	lista dw 8092 dup(?)
 .CODE
 main PROC
+	mov ebx, 0FFFFFFFFh
 	mov eax, OFFSET lista 
+	mov [eax], ebx			;Se agrega el valor nulo al primer elemento
+	mov freemem, eax		;Se agrega freemem la posicion inicial de la lista
+	mov polinomio, eax		;Se agrega polinomio la posicion inicial de la lista
 	push eax				;Se agrega la direccion de la lista en el stack
 	mov eax, OFFSET sting	
 	push eax				;Se agrega la direccion de la cadena
-	mov ax, 1				;Se reseva el espacio del retorno en el stack
-	push ax
+	mov eax, 1				;Se reseva el espacio del retorno de la nueva dirección freemem en el stack
+	push eax
 	call ConvertirStringInt	;Se llama a la funcion ConvertirString
-	pop ax					;Se saca el valor de retorno
+	pop eax					;Se saca el valor de retorno
 	pop edx					;Se saca la direccion de la cadena
 	pop edx					;Se saca la direccion de la lista.
-salir:
+	mov edx, freemem		; movemos el valor de freemem a edx para comparar
+	mov ebx, polinomio		;movemos el valor del polinomio a ebx para comparar
+	cmp ebx, edx			;Comparamos las direcciones de freemem y el polinomio para detenerminar si es el primer elemento
+	je esPrimerElemento		;Si es el primer elemento se agrega al siguiente.
+	mov esi, eax			
+	sub esi, 4				;Le restamos a esi 4 para ir al inicio del nodo
+	mov [eax-8], esi		;Le damos al puntero siguiente el valor del inicio del nodo 
+esPrimerElemento:
+	mov ebx, 0ffffffffh
+	mov [eax], ebx			;Se agrega el valor de nulo al puntero actual
+	add eax, 4				;Le agregamos cuatro a la direccion de la lista en eax.
+	mov freemem, eax		;Movemos la direccion en eax a freemem
 	invoke ExitProcess, 0
 	
 	
@@ -34,8 +49,8 @@ salir:
 	
 ; Funciones
 ConvertirStringInt:				;Transformar un string a Int
-								;esp+16: listas
-								;esp+12: caracter
+								;esp+18: listas
+								;esp+14: caracter
 								;esp+10: valor Retorno (int)
 								;esp+6: direccion retorno
 								;esp+4: num1 (int variable local)
@@ -47,7 +62,7 @@ ConvertirStringInt:				;Transformar un string a Int
 	mov ax, 0			
 	push ax						;Se pone el valor esNegativo al stack
 	mov ebp, esp				;Se pasa la dirección del stack al registro ebp
-	mov esi, [ebp+12]			;obtienes la direccion del string
+	mov esi, [ebp+14]			;obtienes la direccion del string
 	cmp byte ptr [esi], 0		;se compara que no este vacio
 	je finConvertirStringInt	;salta al fin de convertir
 	;mov al, [esi]				movemos el primer caracter
@@ -98,20 +113,21 @@ finConvertirStringInt:
 	neg ax						;Se niega el valor de ax
 pasarNoNegativo2:	
 	mov [ebp+2], ax				;Se guarda el numero en ax al campo num2
-	mov eax, [ebp+16]			;Se obtiene la direccion de la lista del stack
+	mov eax, [ebp+18]			;Se obtiene la direccion de la lista del stack
 	push eax					;Se Ponen en el stack la direccion de la lista
 	mov ax, [ebp+4]				;Se obtiene el valor de num1 del stack 
 	push ax						;Se ponen en stack el num1
 	mov ax, [ebp+2]				;Se obtiene el valor num2 del stack
 	push ax						;Se pone en el stack el num2 
-	mov ax, 0					;Se reserva el valor de retorno
-	push ax						;Se pone en stack el valor de retorno
+	mov eax, 0					;Se reserva el valor de retorno
+	push eax						;Se pone en stack el valor de retorno
 	call agregarLista			;Se llama la funcion de agregarLista
-	pop ax						;Se saca del stack el valor de retorno
+	pop eax						;Se saca del stack el valor de retorno la direccion actual de los elementos agregados
 	pop dx						;Se saca del stack el valor de num2
 	pop dx						;Se saca del stack el valor de num1
 	pop edx						;Se saca del stack la direccion de la lista
-	mov [ebp+10], ax			;Se asigna a el valor de retorno el almacenado en ax
+	mov ebp, esp				;Retornamos la direccion del stack
+	mov [ebp+10], eax			;Se asigna a el valor de retorno el almacenado en eax la direccion actual de los elementos agregados
 	pop ax						;Se saca del stack el valor de esNegativo
 	pop ax						;Se saca del stack el valor de num2
 	pop dx						;Se saca del stack el valor de num1
@@ -123,32 +139,22 @@ agregarLista:
 					;esp+12: lista
 					;esp+10: num1(int)
 					;esp+8: num2(int)
-					;esp+6: valor de Retorno (int)
-					;esp+2: Direccion de retorno
-					;esp: indice(int)
-	mov ax, 0					;Se reserva el campo del indice
-	push ax						;Se pone en el stack el indice
+					;esp+4: valor de Retorno (int)
+					;esp: Direccion de retorno
 	mov ebp, esp				;Se mueve la direccion del stack en ebp
 	mov esi, [ebp+12]			;Se obtiene la direccion de la lista
 	xor eax, eax				;Se limpia el registro de eax
-cicloLista:
-	mov ax, [ebp]				;Se consulta el valor de indice
-	cmp byte ptr [esi+eax], 0	;Se comprueba que es un valor vacio para agregar
-	je AgregarElemento			;Saltamos para agregar el elemento
-	add ax, 4					;Se suma 4 a la direccion del indice
-	mov [esp], ax				;Se guarda en el indice
-	jmp cicloLista				;Saltamos para seguir el loop
-
-AgregarElemento:
-	mov ax, [esp]			;Accedo a la ubicacion de indice
-	mov bx, [esp+10]		;Accedo a la ubicacion de num 1
-	mov [esi+eax], bx		;Se almacena el primer digito
-	mov bx,  [esp+8]		;Se accede a num 2
-	add eax, 2				;Se suma 2 a al indice
-	mov [esi+eax], bx		;Se agrega el num2 a la lista
-	mov eax, 1
-	mov [esp+8], eax		;Guardamos el valor de retorno de la funcion
-	pop ax					;Se saca del stack el valor del indice
+;cicloLista:
+	;mov ax, [ebp]				;Se consulta el valor de indice
+	;cmp byte ptr [esi+eax], 0	;Se comprueba que es un valor vacio para agregar
+	;je AgregarElemento			;Saltamos para agregar el elemento
+	mov ax,[ebp+10]				;Ponemos el valor de num1 en ax
+	mov [esi], ax				;Se agrega num1 al nodo
+	add esi, 2					;Se suma 2 a esi
+	mov ax, [ebp+8]				;Ponemos el valor de num2 en ax
+	mov [esi], ax				;Agregamos el valor de num2 en el nodo
+	add esi, 2					;Le sumamos 2 a la direccion de la lista
+	mov [esp+4], esi		;Guardamos la direccion actual de la lista de los elementos agregados
 	ret
 main ENDP
 END main
