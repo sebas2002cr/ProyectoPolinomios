@@ -1,25 +1,38 @@
-INCLUDE Irvine32.inc
 .386
 .model flat,stdcall
 .stack 4096
 ExitProcess proto, dwExitCode : dword
+ReadConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToRead:DWORD, lpNumberOfCharsRead:PTR DWORD, lpReserved:PTR DWORD 
+GetStdHandle proto, nStdHandle: dword
+
+
 
 .DATA
 	sting db "-4 8$", 0
 	string db "36 7", 0
 	freemem dd ?
 	polinomio dd ?
-	buffer byte 100 dup(?)
+	buffer byte 256 dup(?)
 	lista dw 8092 dup(?)
+	
+	;Elementos para obtener los datos
+	buffere BYTE 256 DUP(?)
+	bytesRead DWORD ?
+	handleIn DWORD ?
 .CODE
 main PROC
+	invoke GetStdHandle, -10
+	mov handleIn, eax
+	mov ebx, SIZEOF buffere - 1
+	invoke ReadConsoleA, handleIn, OFFSET buffere, ebx, OFFSET bytesRead, 0
+
 	mov ebx, 0FFFFFFFFh
 	mov eax, OFFSET lista 
 	mov [eax], ebx			;Se agrega el valor nulo al primer elemento
 	mov freemem, eax		;Se agrega freemem la posicion inicial de la lista
 	mov polinomio, eax		;Se agrega polinomio la posicion inicial de la lista
 	push eax				;Se agrega la direccion de la lista en el stack
-	mov eax, OFFSET sting	
+	mov eax, OFFSET buffere	
 	push eax				;Se agrega la direccion de la cadena
 	mov eax, 1				;Se reseva el espacio del retorno de la nueva dirección freemem en el stack
 	push eax
@@ -81,11 +94,14 @@ convertirLoop:
 
 	add ax, dx					;Se suma el siguiente elemento
 
+	mov byte ptr [esi], 0
 	inc esi						;Incrementamos la direccion para pasar al siguiente elementos de la cadena
 	cmp byte ptr [esi], 0		;Comprobamos si es el final del caracter
 	je finConvertirStringInt	;Saltamos para agregar el nuevo elemento a la lista.
 	cmp byte ptr [esi], "$"		;Comprobamos si es el final del caracter
 	je finConvertirStringInt	;Saltamos para agregar el nuevo elemento a la lista.
+	cmp byte ptr [esi], 13
+	je finConvertirStringInt
 	jmp convertirLoop			;salto para seguir el loop.
 siguienteNumero:
 	mov dx, [ebp]				;Se mueve el valor esNegativo a dx
@@ -96,6 +112,7 @@ siguienteNumero:
 	mov [ebp], dx				;Guardamos el valor en esNegativo
 pasarNoNegativo:
 	mov [ebp+4], ax				;Movemos el primer numero en ax a num1
+	mov byte ptr [esi], 0
 	inc esi						;Pasamos al siguiente elemento incrementando la direccion
 	xor eax, eax				;Se limpia el valor del registro de eax
 	jmp convertirLoop			;Salto para seguir el loop	
@@ -113,6 +130,8 @@ finConvertirStringInt:
 	neg ax						;Se niega el valor de ax
 pasarNoNegativo2:	
 	mov [ebp+2], ax				;Se guarda el numero en ax al campo num2
+	mov byte ptr [esi], 0
+	mov byte ptr [esi+1], 0
 	mov eax, [ebp+18]			;Se obtiene la direccion de la lista del stack
 	push eax					;Se Ponen en el stack la direccion de la lista
 	mov ax, [ebp+4]				;Se obtiene el valor de num1 del stack 
