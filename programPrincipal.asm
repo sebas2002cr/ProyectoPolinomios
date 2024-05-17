@@ -4,35 +4,49 @@
 ExitProcess proto, dwExitCode : dword
 ReadConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToRead:DWORD, lpNumberOfCharsRead:PTR DWORD, lpReserved:PTR DWORD 
 GetStdHandle proto, nStdHandle: dword
-
+WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWORD,lpNumberOfCharsWritten:PTR DWORD,lpReserved:PTR DWORD
 
 
 .DATA
-	sting db "-4 8$", 0
-	string db "36 7", 0
+	numPoli dw 1
 	freemem dd ?
-	polinomio dd ?
+	polinomio1 dd ? 
+	polinomio2 dd ? 
+	polinomioR dd ?
 	buffer byte 256 dup(?)
 	lista dw 8092 dup(?)
-	
+	mensaje1 db "Inserte los datos del primer polinomio.", 13, 10, 0
+	mensaje2 db "Inserte los datos del segundo polinomio.", 13, 10, 0
 	;Elementos para obtener los datos
 	buffere BYTE 256 DUP(?)
 	bytesRead DWORD ?
 	handleIn DWORD ?
+	;Elementos para imprimir datos
+	handleOut DWORD ?
+	buffer_Size dw 255
 .CODE
 main PROC
-	invoke GetStdHandle, -10
-	mov handleIn, eax
-	mov ebx, SIZEOF buffere - 1
-	invoke ReadConsoleA, handleIn, OFFSET buffere, ebx, OFFSET bytesRead, 0
-
-	mov ebx, 0FFFFFFFFh
-	mov eax, OFFSET lista 
+	;Inicio del programa.
+	invoke GetStdHandle, -11 ;Obtener el handle para la salida.
+	mov handleOut, eax		 ;Movemos el handle en eax a handleOut
+	mov ebx, 0FFFFFFFFh		 ;Asignamos el valor nulo al registro ebx
+	mov eax, OFFSET lista	 ;Asignamos la direccion de la lista al registro al eax
 	mov [eax], ebx			;Se agrega el valor nulo al primer elemento
 	mov freemem, eax		;Se agrega freemem la posicion inicial de la lista
-	mov polinomio, eax		;Se agrega polinomio la posicion inicial de la lista
+	mov polinomio1, eax		;Se agrega polinomio la posicion inicial de la lista
+	invoke WriteConsoleA, handleOut, OFFSET mensaje1, 42, OFFSET bytesRead, 0
+	invoke GetStdHandle, -10 ;Obtenemos el handle para la entrada
+	mov handleIn, eax		 ;Movemos el handle en el registro eax al handleIn
+
+cicloPolinomio1:
+	mov ebx, SIZEOF buffere - 1   ;Se obtiene el tamaño del buffer de entrada.
+	invoke ReadConsoleA, handleIn, OFFSET buffere, ebx, OFFSET bytesRead, 0	;Realizamos la entrada de datos
+	mov esi, OFFSET buffere													;Movemos la direccion del buffere
+	cmp byte ptr [esi], "."													;Comparamos si el primer valor es .
+	je finalAgregarPolinomioX												;Saltamos al final de agrega si es un punto
+	mov eax, freemem														;Movemos el valor de freemem a eax
 	push eax				;Se agrega la direccion de la lista en el stack
-	mov eax, OFFSET buffere	
+	mov eax, esi	
 	push eax				;Se agrega la direccion de la cadena
 	mov eax, 1				;Se reseva el espacio del retorno de la nueva dirección freemem en el stack
 	push eax
@@ -40,22 +54,55 @@ main PROC
 	pop eax					;Se saca el valor de retorno
 	pop edx					;Se saca la direccion de la cadena
 	pop edx					;Se saca la direccion de la lista.
-	mov edx, freemem		; movemos el valor de freemem a edx para comparar
-	mov ebx, polinomio		;movemos el valor del polinomio a ebx para comparar
+	mov dx, numPoli			;Movemos el valor de numPoli a dx
+	cmp dx, 2				;Comparamos dx con 2 para saber si estamos en el segundo polinomio
+	je agregarSegundo		;Saltamos a agregar al segundo si es igual.
+	mov ebx, polinomio1		;movemos el valor del polinomio1 a ebx para comparar
+volverAgregar:
+	mov edx, freemem		;movemos el valor de freemem a edx para comparar
 	cmp ebx, edx			;Comparamos las direcciones de freemem y el polinomio para detenerminar si es el primer elemento
 	je esPrimerElemento		;Si es el primer elemento se agrega al siguiente.
-	mov esi, eax			
+	mov esi, eax			;Movemos la direccion del elementos agregado para asignar la ubicacion de inicio en esi 
 	sub esi, 4				;Le restamos a esi 4 para ir al inicio del nodo
 	mov [eax-8], esi		;Le damos al puntero siguiente el valor del inicio del nodo 
 esPrimerElemento:
-	mov ebx, 0ffffffffh
+	mov ebx, 0ffffffffh		;Se movemos a ebx el valor nulo.
 	mov [eax], ebx			;Se agrega el valor de nulo al puntero actual
-	add eax, 4				;Le agregamos cuatro a la direccion de la lista en eax.
+	add eax, 4				;Le agregamos cuatro a la direccion de la lista en eax para el nuevo elemento.
 	mov freemem, eax		;Movemos la direccion en eax a freemem
+	jmp cicloPolinomio1     ;Continua el loop cicloPolinomio
+finalAgregarPolinomioX:
+	mov ax, numPoli			;Movemos el valor de numPoli en ax 
+	cmp ax, 2				;Comparamos el valor de ax con para saber si estamos en el segundo polinomio.
+	je finalPolinomios		;Si es igual salimos de agregar el elemento
+	inc ax					;else, incrementamos el valor de ax
+	mov numPoli, ax			;Movemos el nuevo valor a la direccion de numPoli
+	mov eax, freemem		;Movemos el valor en freemem a eax para 
+	mov polinomio2, eax		;Movemos el valor de freemem en eax al polinomio2 para indicar su inicio
+	invoke WriteConsoleA, handleOut, OFFSET mensaje2, 43, OFFSET bytesRead, 0  ;Se imprime el mensaje para agregar datos del polinomio 2
+	jmp cicloPolinomio1      ;Continua el ciclo
+finalPolinomios:			;Termina el proceso de agregar en los polinomios
+	mov eax, freemem
+	mov polinomioR, eax
+	mov ebx, polinomio1
+	push ebx
+	mov ebx, polinomio2
+	push ebx
+	push eax
+	push eax
+	mov esi, 0
+	push esi
+	call SumarPolinomios
+	pop eax
+	pop edx
+	pop edx
+	pop edx
+	pop edx
 	invoke ExitProcess, 0
-	
-	
-	
+
+agregarSegundo:
+	mov ebx, polinomio2		;Movemos el valor de polinomio2 a ebx para comparar si es el primer elemento
+	jmp volverAgregar		;Continua el ciclo.
 	
 	
 	
@@ -64,7 +111,7 @@ esPrimerElemento:
 ConvertirStringInt:				;Transformar un string a Int
 								;esp+18: listas
 								;esp+14: caracter
-								;esp+10: valor Retorno (int)
+								;esp+10: valor Retorno 
 								;esp+6: direccion retorno
 								;esp+4: num1 (int variable local)
 								;esp+2: num2 (int variable local)
@@ -174,6 +221,132 @@ agregarLista:
 	mov [esi], ax				;Agregamos el valor de num2 en el nodo
 	add esi, 2					;Le sumamos 2 a la direccion de la lista
 	mov [esp+4], esi		;Guardamos la direccion actual de la lista de los elementos agregados
+	ret
+
+SumarPolinomios:
+				;Suma de Polinomios
+				;Stack Frame
+				;esp+30: Polinomio1
+				;esp+26: Polinomio2
+				;esp+22: PolinomioR
+				;esp+18: Freemem
+				;esp+14: ValorRetorno
+				;esp+10: Direccion Retorno
+				;esp+8: Coef1
+				;esp+6: Exp1
+				;esp+4: Coef2
+				;esp+2: Exp2
+				;esp: ultimoExp
+	mov ax, 0
+	mov bx, -1
+	push ax
+	push bx
+	push ax
+	push bx
+	mov ax, 123
+	push ax
+	mov ebp, esp
+inicioCiclo1:	
+	mov esi, [ebp+30]
+	xor eax, eax
+	xor ebx, ebx
+ciclo1:
+	mov ax, [esi+2]
+	mov bx, [ebp]
+	cmp ax, bx 
+	jge siguienteElemento 
+	mov bx, [ebp+6]
+	cmp ax, bx
+	jle siguienteElemento   
+	mov [ebp+6], ax
+	mov ax, [esi]
+	mov [ebp+8], ax
+
+siguienteElemento:
+	mov esi, [esi+4]
+	mov eax, 0FFFFFFFFh
+	cmp esi, eax
+	je iniciociclo2
+	jmp ciclo1
+inicioCiclo2:	
+	mov esi, [ebp+26]
+	xor eax, eax
+	xor ebx, ebx
+ciclo2:
+	mov ax, [esi+2]
+	mov bx, [ebp]
+	cmp ax, bx
+	jge siguenteElementoPolinomio2  
+	mov bx, [ebp+6]
+	cmp ax, bx
+	jg cambiarExponente1
+	cmp ax, bx
+	jne siguenteElementoPolinomio2
+	mov [ebp+2], ax
+	mov ax, [esi]
+	mov [ebp+4], ax
+	jmp realizarSuma
+siguenteElementoPolinomio2:
+	mov esi, [esi+4]
+	cmp esi, 0FFFFFFFFh
+	je AgregarElemento
+	jmp ciclo2
+cambiarExponente1:
+	mov [ebp+6], ax
+	mov ax, [esi]
+	mov [ebp+8], ax
+	jmp AgregarElemento
+realizarSuma:
+	mov ax, [ebp+8]
+	mov bx, [ebp+4]
+	add ax, bx
+	mov [ebp+8], ax
+AgregarElemento:
+	mov bx, [ebp+6]
+	cmp bx, -1
+	je finalSuma
+	mov ax, [ebp+8]
+	mov edx, [ebp+18]
+	push edx
+	push ax
+	push bx
+	mov eax, 0
+	push eax
+	call agregarLista
+	pop eax
+	pop bx
+	pop bx
+	pop ebx
+	mov ebp, esp
+	mov ebx, [ebp+18]
+	mov edx, [ebp+22]
+	cmp ebx, edx
+	je primerElementoResult
+	mov esi, eax 
+	sub esi, 4
+	mov [eax-8], esi
+primerElementoResult:
+	mov ebx, 0FFFFFFFFh
+	mov [eax], ebx
+	add eax, 4
+	mov [ebp+18], eax
+	mov ax, [ebp+6]
+	mov [ebp], ax
+	mov ax, 0
+	mov bx, -1
+	mov [ebp+8], ax
+	mov [ebp+6], bx
+	mov [ebp+4], ax
+	mov [ebp+2], bx
+	jmp inicioCiclo1
+finalSuma:
+	mov eax, [ebp+18]
+	mov [ebp+14], eax
+	pop dx
+	pop dx
+	pop dx
+	pop dx
+	pop dx
 	ret
 main ENDP
 END main
