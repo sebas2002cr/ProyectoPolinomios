@@ -6,7 +6,6 @@ ReadConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToRead:DWORD,
 GetStdHandle proto, nStdHandle: dword
 WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWORD,lpNumberOfCharsWritten:PTR DWORD,lpReserved:PTR DWORD
 
-
 .DATA
 	numPoli dw 1
 	freemem dd ?
@@ -17,6 +16,7 @@ WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWOR
 	lista dw 8092 dup(?)
 	mensaje1 db "Inserte los datos del primer polinomio.", 13, 10, 0
 	mensaje2 db "Inserte los datos del segundo polinomio.", 13, 10, 0
+	mensajeSalida db "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^Resultado", 13, 10, 0
 	;Elementos para obtener los datos
 	buffere BYTE 256 DUP(?)
 	bytesRead DWORD ?
@@ -24,13 +24,17 @@ WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWOR
 	;Elementos para imprimir datos
 	handleOut DWORD ?
 	buffer_Size dw 255
+	espacio db " ", 0
+	newline db 13, 10, 0
+; Buffer temporal para conversión de números
+	numStr db 11 dup(?)
 .CODE
 main PROC
 	;Inicio del programa.
 	invoke GetStdHandle, -11 ;Obtener el handle para la salida.
 	mov handleOut, eax		 ;Movemos el handle en eax a handleOut
 	mov ebx, 0FFFFFFFFh		 ;Asignamos el valor nulo al registro ebx
-	mov eax, OFFSET lista	 ;Asignamos la direccion de la lista al registro al eax
+	mov eax, OFFSET lista	 ;Asignamos la direccion de la lista al registro eax
 	mov [eax], ebx			;Se agrega el valor nulo al primer elemento
 	mov freemem, eax		;Se agrega freemem la posicion inicial de la lista
 	mov polinomio1, eax		;Se agrega polinomio la posicion inicial de la lista
@@ -39,7 +43,7 @@ main PROC
 	mov handleIn, eax		 ;Movemos el handle en el registro eax al handleIn
 
 cicloPolinomio1:
-	mov ebx, SIZEOF buffere - 1   ;Se obtiene el tama�o del buffer de entrada.
+	mov ebx, SIZEOF buffere - 1   ;Se obtiene el tamano del buffer de entrada.
 	invoke ReadConsoleA, handleIn, OFFSET buffere, ebx, OFFSET bytesRead, 0	;Realizamos la entrada de datos
 	mov esi, OFFSET buffere													;Movemos la direccion del buffere
 	cmp byte ptr [esi], "."													;Comparamos si el primer valor es .
@@ -48,7 +52,7 @@ cicloPolinomio1:
 	push eax				;Se agrega la direccion de la lista en el stack
 	mov eax, esi	
 	push eax				;Se agrega la direccion de la cadena
-	mov eax, 1				;Se reseva el espacio del retorno de la nueva direcci�n freemem en el stack
+	mov eax, 1				;Se reseva el espacio del retorno de la nueva direccion freemem en el stack
 	push eax
 	call ConvertirStringInt	;Se llama a la funcion ConvertirString
 	pop eax					;Se saca el valor de retorno
@@ -98,16 +102,121 @@ finalPolinomios:			;Termina el proceso de agregar en los polinomios
 	pop edx
 	pop edx
 	pop edx
-	invoke ExitProcess, 0
+	
+	; Inicia la impresión del resultado
+	mov eax, polinomioR
+	jmp Imprimir
 
 agregarSegundo:
 	mov ebx, polinomio2		;Movemos el valor de polinomio2 a ebx para comparar si es el primer elemento
 	jmp volverAgregar		;Continua el ciclo.
+
+Imprimir:
+    mov eax, polinomioR ; traer la referencia del primer elemento de la salida
+
+imprimirLoop:
+
+	xor ebx, ebx
+	xor edx, edx
+    mov bx, [eax] ; Cargamos el coeficiente
+    mov dx, [eax + 2]; Cargamos la potencia
+
+    ; Convertir el coeficiente a cadena
+    push eax
+    push edx
+    mov eax, ebx
+    call IntToStr
+    pop edx
+    pop eax
+	mov ebx, edx
+	push eax
+    invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
+    invoke WriteConsoleA, handleOut, OFFSET espacio, 1, OFFSET bytesRead, 0
+	pop eax
+    ; Convertir la potencia a cadena
+    push eax
+    push edx
+    mov eax, ebx
+    call IntToStr
+    pop edx
+    pop eax
+	push eax
+    invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
+    invoke WriteConsoleA, handleOut, OFFSET newline, 2, OFFSET bytesRead, 0
+	pop eax
+
+	push eax
+	add eax, 4 ; para comprobar si lo que sigue es el final
+	mov eax, [eax]
+    cmp eax, 0FFFFFFFFh ; Comprobamos si es el final de la lista
+	je finImpresionPolinomio
+	sub eax, 4
+	pop eax
 	
-	
-	
-	
-; Funciones
+    ; Avanzar al siguiente elemento
+    add eax, 8
+    jmp imprimirLoop
+
+finImpresionPolinomio:
+	invoke WriteConsoleA, handleOut, OFFSET mensajeSalida, 42, OFFSET bytesRead, 0
+    invoke ExitProcess, 0
+
+IntToStr PROC
+    ; Esta función convierte un número entero (en eax) a una cadena (en numStr)
+    ; y devuelve la longitud de la cadena en eax.
+
+    ; Variables locales
+    push ebp
+    mov ebp, esp
+    sub esp, 16 ; Reservar espacio para la cadena temporal
+
+    mov edi, esp ; Usar edi como puntero de la cadena temporal
+    mov ecx, 10  ; Divisor (base 10)
+
+    ; Manejar el caso especial de 0
+    cmp eax, 0
+    jne intToStrLoop
+    mov byte ptr [edi], '0'
+    inc edi
+    jmp intToStrDone
+
+intToStrLoop:
+    xor edx, edx  ; Limpiar edx antes de la división
+    div ecx       ; Divide eax entre 10, cociente en eax, resto en edx
+    add dl, 48   ; Convertir el dígito a carácter ASCII
+    dec edi       ; Mover el puntero a la izquierda
+    mov [edi], dl ; Almacenar el carácter
+    test eax, eax ; ¿Eax es 0?
+    jnz intToStrLoop ; Si no, repetir
+
+intToStrDone:
+	;mov numStr, 0
+    mov eax, esp  ; Apuntar eax a la cadena temporal
+    sub eax, edi  ; Calcular la longitud de la cadena
+
+    ; Copiar la cadena temporal a numStr
+    mov esi, edi  ; Puntero fuente
+    mov edi, OFFSET numStr ; Puntero destino
+    mov ecx, eax  ; Longitud de la cadena
+    rep movsb     ; Copiar la cadena
+
+    ; Devolver la longitud de la cadena en eax
+    mov ecx, eax
+
+    mov esp, ebp  ; Restaurar el puntero de pila
+    pop ebp
+    ret
+IntToStr ENDP
+
+
+
+
+
+
+
+
+
+
 ConvertirStringInt:				;Transformar un string a Int
 								;esp+18: listas
 								;esp+14: caracter
@@ -121,7 +230,7 @@ ConvertirStringInt:				;Transformar un string a Int
 	push ax						;se pone a num2 al stack
 	mov ax, 0			
 	push ax						;Se pone el valor esNegativo al stack
-	mov ebp, esp				;Se pasa la direcci�n del stack al registro ebp
+	mov ebp, esp				;Se pasa la direccion del stack al registro ebp
 	mov esi, [ebp+14]			;obtienes la direccion del string
 	cmp byte ptr [esi], 0		;se compara que no este vacio
 	je finConvertirStringInt	;salta al fin de convertir
