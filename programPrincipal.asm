@@ -14,6 +14,9 @@ WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWOR
 	polinomioR dd ?
 	buffer byte 256 dup(?)
 	lista dw 8092 dup(?)
+	simbolo_negativo db "-",0
+	is_potencia_negative dw 0
+	is_coeficiente_negative dw 0
 	mensaje1 db "Inserte los datos del primer polinomio.", 13, 10, 0
 	mensaje2 db "Inserte los datos del segundo polinomio.", 13, 10, 0
 	mensajeSalida db "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^Resultado", 13, 10, 0
@@ -118,8 +121,29 @@ imprimirLoop:
 
 	xor ebx, ebx
 	xor edx, edx
+
     mov bx, [eax] ; Cargamos el coeficiente
+	test bx, 8000h ; Se prueba el bit de signo (Probar el bit más significativo (bit 15))
+	jnz is_negative_coeficiente ; Si el bit es 1, salta a la etiqueta is_negative
+	jmp test_potencia
+	is_negative_coeficiente:
+		not bx;
+		add bx,1
+		mov is_coeficiente_negative, 1
+		
+		
+	test_potencia:
     mov dx, [eax + 2]; Cargamos la potencia
+	test dx, 8000h ; Probar el bit más significativo (bit 15)
+	jnz is_negative_potencia ; Si el bit es 1, salta a la etiqueta is_negative
+	jmp not_negative
+	is_negative_potencia:
+		not dx;
+		add dx,1
+		mov is_potencia_negative, 1
+
+	not_negative:
+
 
     ; Convertir el coeficiente a cadena
     push eax
@@ -130,8 +154,12 @@ imprimirLoop:
     pop eax
 	mov ebx, edx
 	push eax
-    invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
-    invoke WriteConsoleA, handleOut, OFFSET espacio, 1, OFFSET bytesRead, 0
+	cmp is_coeficiente_negative, 1
+	jne volver_coeficiente
+	invoke WriteConsoleA, handleOut, OFFSET simbolo_negativo, 1, OFFSET bytesRead, 0
+	volver_coeficiente:
+		invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
+		invoke WriteConsoleA, handleOut, OFFSET espacio, 1, OFFSET bytesRead, 0
 	pop eax
     ; Convertir la potencia a cadena
     push eax
@@ -141,8 +169,12 @@ imprimirLoop:
     pop edx
     pop eax
 	push eax
-    invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
-    invoke WriteConsoleA, handleOut, OFFSET newline, 2, OFFSET bytesRead, 0
+	cmp is_potencia_negative, 1
+	jne volver_potencia
+	invoke WriteConsoleA, handleOut, OFFSET simbolo_negativo, 1, OFFSET bytesRead, 0
+	volver_potencia:
+		invoke WriteConsoleA, handleOut, OFFSET numStr, ecx, OFFSET bytesRead, 0
+		invoke WriteConsoleA, handleOut, OFFSET newline, 2, OFFSET bytesRead, 0
 	pop eax
 
 	push eax
@@ -155,6 +187,8 @@ imprimirLoop:
 	
     ; Avanzar al siguiente elemento
     add eax, 8
+	mov is_coeficiente_negative, 0
+	mov is_potencia_negative, 0
     jmp imprimirLoop
 
 finImpresionPolinomio:
@@ -176,8 +210,10 @@ IntToStr PROC
     ; Manejar el caso especial de 0
     cmp eax, 0
     jne intToStrLoop
-    mov byte ptr [edi], '0'
-    inc edi
+	xor edx, edx  ; Limpiar edx antes de ponerle el ascii del caracter
+    mov dl, 48   ; Convertir el dígito a carácter ASCII '0'
+    dec edi       ; Mover el puntero a la izquierda
+    mov [edi], dl ; Almacenar el carácter
     jmp intToStrDone
 
 intToStrLoop:
