@@ -29,7 +29,7 @@ WriteConsoleA PROTO, handle:DWORD, lpBuffer:PTR BYTE, nNumberOfCharsToWrite:DWOR
 	buffer_Size dw 255
 	espacio db " ", 0
 	newline db 13, 10, 0
-; Buffer temporal para conversiÃ³n de nÃºmeros
+; Buffer temporal para conversión de números
 	numStr db 11 dup(?)
 .CODE
 main PROC
@@ -106,7 +106,7 @@ finalPolinomios:			;Termina el proceso de agregar en los polinomios
 	pop edx
 	pop edx
 	
-	; Inicia la impresiÃ³n del resultado
+	; Inicia la impresión del resultado
 	mov eax, polinomioR
 	jmp Imprimir
 
@@ -123,7 +123,7 @@ imprimirLoop:
 	xor edx, edx
 
     mov bx, [eax] ; Cargamos el coeficiente
-	test bx, 8000h ; Se prueba el bit de signo (Probar el bit mÃ¡s significativo (bit 15))
+	test bx, 8000h ; Se prueba el bit de signo (Probar el bit más significativo (bit 15))
 	jnz is_negative_coeficiente ; Si el bit es 1, salta a la etiqueta is_negative
 	jmp test_potencia
 	is_negative_coeficiente:
@@ -134,7 +134,7 @@ imprimirLoop:
 		
 	test_potencia:
     mov dx, [eax + 2]; Cargamos la potencia
-	test dx, 8000h ; Probar el bit mÃ¡s significativo (bit 15)
+	test dx, 8000h ; Probar el bit más significativo (bit 15)
 	jnz is_negative_potencia ; Si el bit es 1, salta a la etiqueta is_negative
 	jmp not_negative
 	is_negative_potencia:
@@ -196,7 +196,7 @@ finImpresionPolinomio:
     invoke ExitProcess, 0
 
 IntToStr PROC
-    ; Esta funciÃ³n convierte un nÃºmero entero (en eax) a una cadena (en numStr)
+    ; Esta función convierte un número entero (en eax) a una cadena (en numStr)
     ; y devuelve la longitud de la cadena en eax.
 
     ; Variables locales
@@ -211,18 +211,18 @@ IntToStr PROC
     cmp eax, 0
     jne intToStrLoop
 	xor edx, edx  ; Limpiar edx antes de ponerle el ascii del caracter
-    mov dl, 48   ; Convertir el dÃ­gito a carÃ¡cter ASCII '0'
+    mov dl, 48   ; Convertir el dígito a carácter ASCII '0'
     dec edi       ; Mover el puntero a la izquierda
-    mov [edi], dl ; Almacenar el carÃ¡cter
+    mov [edi], dl ; Almacenar el carácter
     jmp intToStrDone
 
 intToStrLoop:
-    xor edx, edx  ; Limpiar edx antes de la divisiÃ³n
+    xor edx, edx  ; Limpiar edx antes de la división
     div ecx       ; Divide eax entre 10, cociente en eax, resto en edx
-    add dl, 48   ; Convertir el dÃ­gito a carÃ¡cter ASCII
+    add dl, 48   ; Convertir el dígito a carácter ASCII
     dec edi       ; Mover el puntero a la izquierda
-    mov [edi], dl ; Almacenar el carÃ¡cter
-    test eax, eax ; Â¿Eax es 0?
+    mov [edi], dl ; Almacenar el carácter
+    test eax, eax ; ¿Eax es 0?
     jnz intToStrLoop ; Si no, repetir
 
 intToStrDone:
@@ -382,116 +382,119 @@ SumarPolinomios:
 				;esp+4: Coef2
 				;esp+2: Exp2
 				;esp: ultimoExp
-	mov ax, 0
-	mov bx, -1
-	push ax
-	push bx
-	push ax
-	push bx
-	mov ax, 123
-	push ax
-	mov ebp, esp
+	mov ax, 0	;mueve 0 el registro ax para representar el coeficiente 
+	mov bx, -1	;mueve -1 al registro ax para representar el exponente vacio
+	push ax		;Se inicia Coef1 en el stack
+	push bx		;Se inicia Exp1 en el stack
+	push ax		;Se inicia Coef2 en el stack
+	push bx		;Se inicia Exp2 en el stack
+	mov ax, 9999		
+	push ax			;Se inicia un numero muy grande para representar el ultimoExp
+	mov ebp, esp	;Recuperamos la ubicacion del stack en el registro ebp
 inicioCiclo1:	
-	mov esi, [ebp+30]
-	xor eax, eax
-	xor ebx, ebx
-ciclo1:
-	mov ax, [esi+2]
-	mov bx, [ebp]
-	cmp ax, bx 
-	jge siguienteElemento 
-	mov bx, [ebp+6]
-	cmp ax, bx
-	jle siguienteElemento   
-	mov [ebp+6], ax
-	mov ax, [esi]
-	mov [ebp+8], ax
+	mov esi, [ebp+30]	;Movemos al registro esi la direccion del polinomio1
+	xor eax, eax		;Limpiamos el registro eax
+	xor ebx, ebx		;Limpiamos el registro ebx
+cicloSuma1:				;Etiqueta de la direccion para realizar el loop
+	mov ax, [esi+2]		;Movemos al registro ax el exp del primer polinomio que se encuentra en la direccion esi 
+	mov bx, [ebp]		;Movemos el valor del ultimoExp para comparar si ya se evalua o no.
+	cmp ax, bx			
+	jge siguienteElemento	;Si es mayor o igual ya fue evaluado.
+	mov bx, [ebp+6]			;Movemos el valor del Exp1 para comparar si es mayor el que el exponente en ax
+	cmp ax, bx				
+	jle siguienteElemento   ;Si es menor entonces pasamos al siguiente si no cambiamos los valores del Exp1 y Coef1
+	mov [ebp+6], ax			;Movemos el valor de ax al Exp1
+	mov ax, [esi]			;Movemos el valor del coeficiente en polinomio1 a ax.
+	mov [ebp+8], ax			;Movemos el valor de ax a Coef1
 
 siguienteElemento:
-	mov esi, [esi+4]
+	mov esi, [esi+4]		;Movemos la siguiente direccion a esi
 	mov eax, 0FFFFFFFFh
-	cmp esi, eax
-	je iniciociclo2
-	jmp ciclo1
+	cmp esi, eax			;Comparamos si la direccion en esi es igual para saber si estamos al final
+	je iniciociclo2			;Si es igual pasamos al siguiente ciclo
+	jmp cicloSuma1			
 inicioCiclo2:	
-	mov esi, [ebp+26]
-	xor eax, eax
-	xor ebx, ebx
-ciclo2:
-	mov ax, [esi+2]
-	mov bx, [ebp]
+	mov esi, [ebp+26]		;Movemos la direccion del polinomio2 en esi
+	xor eax, eax			;Limpiamos el registro eax
+	xor ebx, ebx			;Limpiamos el registro ebx
+cicloSuma2:					;Etiqueta para seguir en el ciclo del segundo Polinomio2
+	mov ax, [esi+2]			;Movemos a ax el coeficien en la direccion actual esi+2
+	mov bx, [ebp]			;Movemos el valor del ultimoExp para saber si ya comparamos ese exponente
 	cmp ax, bx
-	jge siguenteElementoPolinomio2  
-	mov bx, [ebp+6]
+	jge siguenteElementoPolinomio2		;Si es mayor ya se comparo y pasamos al siguiente elemento
+	mov bx, [ebp+6]						;Movemos el valor del Exp1 para compara con el exponente en ax
 	cmp ax, bx
-	jg cambiarExponente1
+	jg cambiarExponente1				;Si es mayor ax pasamos a cambiar el Exponente1 
 	cmp ax, bx
-	jne siguenteElementoPolinomio2
-	mov [ebp+2], ax
-	mov ax, [esi]
-	mov [ebp+4], ax
-	jmp realizarSuma
-siguenteElementoPolinomio2:
-	mov esi, [esi+4]
-	cmp esi, 0FFFFFFFFh
-	je AgregarElemento
-	jmp ciclo2
-cambiarExponente1:
-	mov [ebp+6], ax
-	mov ax, [esi]
-	mov [ebp+8], ax
-	jmp AgregarElemento
+	jne siguenteElementoPolinomio2		;Si el Exp1 y ax son diferentes pasamos al siguientem si no se agrega Exp2 y Coef2
+	mov [ebp+2], ax						;Se agrega el valor ax a Exp2
+	mov ax, [esi]						;Movemos el coeficiente en la direccion esi actual al registro ax.
+	mov [ebp+4], ax						;Movemos a Coef2 el valor ax
+siguenteElementoPolinomio2:				;Pasamos al siguiente elemento en la lista
+	mov esi, [esi+4]					;Movemos la direccion en esi+4 a esi
+	cmp esi, 0FFFFFFFFh					;comparamos si la direccion de esi es el final del polinomio2
+	je realizarSuma						;Si es el final pasamos a la suma
+	jmp cicloSuma2						;Seguimos en el cicloSuma2
+cambiarExponente1:						;Cambiar exponente1 si es mayor
+	mov [ebp+6], ax						;Movemos el valor del registro ax en Exp1
+	mov ax, [esi]						;Movemos el coeficiente en la direccion en esi a ax
+	mov [ebp+8], ax						;Movemos el valor de ax en Coef1
+	mov ax, 0					
+	mov [ebp+4], ax						;Movemos 0 a Coef2
+	mov ax, -1			
+	mov [ebp+2], ax						;Movemos -1 a Exp2
+	jmp siguenteElementoPolinomio2		;Pasamos al siguiente Elemento del Polinomio2
 realizarSuma:
-	mov ax, [ebp+8]
-	mov bx, [ebp+4]
-	add ax, bx
-	mov [ebp+8], ax
+	mov ax, [ebp+8]						;Movemos el valor de Coef1 en ax
+	mov bx, [ebp+4]						;Movemos el valor de Coef2 en bx
+	add ax, bx							;Sumamos el valor ax y bx
+	mov [ebp+8], ax						;Movemos el resultado en ax a Coef1
 AgregarElemento:
-	mov bx, [ebp+6]
-	cmp bx, -1
-	je finalSuma
-	mov ax, [ebp+8]
-	mov edx, [ebp+18]
-	push edx
-	push ax
-	push bx
+	mov bx, [ebp+6]						;Movemos el valor en Exp1 a bx para saber si ya se operaron todos los elementos
+	cmp bx, -1							
+	je finalSuma						;Saltamos al final del procedimiento
+	mov ax, [ebp+8]						;Movemos el valor del Coef1 en ax
+	mov edx, [ebp+18]					;Movemos la direccion de freemem en edx
+	push edx							;Agregamos al stack la direccion freemem
+	push ax								;Agregamos al stack el valor Coef1
+	push bx								;Agregamos al stack el valor Exp1
 	mov eax, 0
-	push eax
-	call agregarLista
-	pop eax
+	push eax							;Agregamos el valor de retorno
+	call agregarLista					;Llamamos al procedimiento de AgregarLista
+	pop eax								;Obtenemos el valor de retorno
 	pop bx
 	pop bx
-	pop ebx
-	mov ebp, esp
-	mov ebx, [ebp+18]
-	mov edx, [ebp+22]
+	pop ebx								;Limpiamos el stack
+	mov ebp, esp						;Recuperamos la direccion del stack en ebp
+	mov ebx, [ebp+18]					;Movemos la direccion de freemem
+	mov edx, [ebp+22]					;Movemos la direccion de polinomioR
 	cmp ebx, edx
-	je primerElementoResult
-	mov esi, eax 
+	je primerElementoResult				;Comparamos si el valor igual para saber si es el primer elemento.
+	mov esi, eax						
 	sub esi, 4
-	mov [eax-8], esi
+	mov [eax-8], esi					; Se agrega la direccion del ultimo objeto agregado al puntero del elemento anterior
 primerElementoResult:
-	mov ebx, 0FFFFFFFFh
-	mov [eax], ebx
-	add eax, 4
-	mov [ebp+18], eax
-	mov ax, [ebp+6]
-	mov [ebp], ax
-	mov ax, 0
+	mov ebx, 0FFFFFFFFh					
+	mov [eax], ebx						;Se agrega al puntero del ultimo elemento el valor nulo
+	add eax, 4							;Se suma la 4 a la direccion en eax
+	mov [ebp+18], eax					;Le pasamos la direccion en eax a freemem
+	mov ax, [ebp+6]						
+	mov [ebp], ax						;Movemos el valor Exp1 que se encuentra en ax a ultimoExp
+	mov ax, 0			
 	mov bx, -1
-	mov [ebp+8], ax
+	mov [ebp+8], ax	
 	mov [ebp+6], bx
 	mov [ebp+4], ax
-	mov [ebp+2], bx
-	jmp inicioCiclo1
+	mov [ebp+2], bx						;Ponemos los valores iniciales de Exp1, Ex2 en -1 y Coef1, Coef2 eb 0
+	jmp inicioCiclo1					;Saltamos al inicio del polinomio1
 finalSuma:
-	mov eax, [ebp+18]
-	mov [ebp+14], eax
+	mov eax, [ebp+18]					;Pasamos el valor de freemem como valor de retorno
+	mov [ebp+14], eax					
 	pop dx
 	pop dx
 	pop dx
 	pop dx
-	pop dx
+	pop dx								;Limpiamos el stack y retornamos
 	ret
 main ENDP
 END main
